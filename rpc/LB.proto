@@ -1,0 +1,30 @@
+syntax = "proto3";
+// Define the service
+option go_package = "github.com/hayk2377/distributed/rpc/LoadBalancer";
+service LoadBalancer {
+    // Register a new server with its IP
+    rpc NewServer(ServerRequest) returns (ServerResponse);
+
+    // Send a heartbeat with the server's IP
+    rpc HeartBeat(heartreq) returns (ServerResponse);
+
+    // Notify the load balancer with a game ID and server IP
+    rpc Notify(NotifyRequest) returns (ServerResponse);
+}
+
+// Define message types
+message ServerRequest {
+    string ip = 1;
+    string password =2;
+}
+message heartreq {
+    string status =1;
+}
+message ServerResponse {
+    string serverId = 1;
+}
+
+message NotifyRequest {
+    string gameId = 1;
+    string serverIp = 2;
+}
