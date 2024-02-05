@@ -10,20 +10,30 @@ import (
 )
 
 func main(){
+	//Load env variable
 	err := godotenv.Load(".env")
 
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	//get port
 	port := os.Getenv("PORT")
 
+	//if no port, pick 8000 by default
 	if port==""{
 		port="8000"
 	}
 
+	//get a new router, log every event
 	router := gin.New()
 	router.Use(gin.Logger())
 
+	router.GET("/test", func(ctx *gin.Context) {
+		ctx.JSON(200, gin.H{
+			"message": "Hello World",
+		})
+	})
+	
 	routes.AuthRoutes(router)
 	routes.UserRoutes(router)
 

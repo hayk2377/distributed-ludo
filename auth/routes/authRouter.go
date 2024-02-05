@@ -5,7 +5,7 @@ import (
 	controller "github.com/hayk2377/distributed-ludo/auth/controllers"
 )
 
-func AuthRoutes(incomingRoutes *gin.Engine){
-	incomingRoutes.POST("users/signup", controller.Signup())
-	incomingRoutes.POST("users/login", controller.Login())
+func AuthRoutes(incomingRoutes *gin.Engine) {
+	incomingRoutes.POST("/signup", controller.Signup())
+	incomingRoutes.POST("/login", controller.Login())
 }
