@@ -1,6 +1,6 @@
 import { errorIfUndefinedValues } from '../utils'
+import { LOAD_BALANCER_ADDRESS as AUTH_ADDRESS } from './loadbalancer-address' 
 
-export const AUTH_ADDRESS = 'http://localhost:9000'
 
 export function getJWT() {
   const token = localStorage.getItem('token')

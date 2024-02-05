@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import CreateJoin from '../CreateJoin'
 import Game from '../Game'
 import Lobby from '../Lobby'
-import GameFlowService from '../../services/gameFlow'
+import GameFlowService, {
+  createLobby as cLobby,
+  getGameServerAddress,
+} from '../../services/gameFlow'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import InNavbar from '../../components/InNavbar'
-import { getUser } from '../../services/user'
+import { getJWT, getUser } from '../../services/user'
 
 export default function GameFlow() {
   const [user, setUser] = useState(null)
@@ -95,13 +98,12 @@ export default function GameFlow() {
     console.log('Lobby state:', lobbyState)
   }
 
-  const createGameFlowService = () => {
-    const gameHost = 'localhost'
-    const gamePort = 5007
-    const jwt = JSON.stringify({
-      id: getPlayerId(),
-      name: getPlayerName(getPlayerId()),
-    })
+  const createGameFlowService = async (gameCode) => {
+    const { host: gameHost, port: gamePort } = await getGameServerAddress(
+      gameCode
+    )
+
+    const jwt = getJWT()
 
     const newGameFlowService = new GameFlowService({
       gameHost,
@@ -119,7 +121,16 @@ export default function GameFlow() {
   }
 
   useEffect(() => {
-    setGameFlowService(createGameFlowService())
+    const fetch = async () => {
+      try {
+        const gameFlowService = await createGameFlowService()
+        setGameFlowService(gameFlowService)
+      } catch (e) {
+        toast.error(e.message)
+        toast.error('Please retry')
+      }
+    }
+    fetch()
   }, [])
 
   useEffect(() => {
@@ -138,16 +149,16 @@ export default function GameFlow() {
     console.log('Creating lobby')
     let gameCode
     try {
-      gameCode = await gameFlowService.createLobby()
+      gameCode = await cLobby()
+      console.log("game code is",gameCode)
+      const gameFlowService = await createGameFlowService(gameCode)
+      await gameFlowService.joinLobby({ gameCode })
+
+      setGameCode(gameCode)
     } catch (err) {
       toast.error(`Couldn't connect. Check your connection!`)
       console.error(err)
     }
-
-    if (!gameCode) return
-    await gameFlowService.joinLobby({ gameCode })
-    //onLobbyPlayersUpdate will handle the page transition
-    setGameCode(gameCode)
   }
 
   const joinLobby = async (gameCode) => {
@@ -177,10 +188,11 @@ export default function GameFlow() {
     gameFlowService.rollDice()
   }
 
-  const toHomeOnGameEnd = () => {
+  const toHomeOnGameEnd = async () => {
     //Just like the use effect
     gameFlowService.endService()
-    setGameFlowService(createGameFlowService())
+    const gF = await createGameFlowService()
+    setGameFlowService(gF)
     setPage(0)
   }
 
@@ -191,7 +203,11 @@ export default function GameFlow() {
         <>
           <ToastContainer />
           {page === 0 && (
-            <CreateJoin onCreateLobby={createLobby} onJoinLobby={joinLobby} name={user?.name} />
+            <CreateJoin
+              onCreateLobby={createLobby}
+              onJoinLobby={joinLobby}
+              name={user?.name}
+            />
           )}
           {page === 1 && (
             <Lobby

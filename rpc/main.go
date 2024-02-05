@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	queue      = []string{"localhost:8081", "localhost:8082", "localhost:8083", "localhost:8084", "localhost:8085"}
+	queue      = []string{}
 	mutex      sync.Mutex
 	games      = make(map[string]string)
 	gamesMutex sync.Mutex
@@ -32,6 +32,10 @@ type Response struct {
 }
 type LoadBalancer struct {
 	pb.UnimplementedLoadBalancerServer
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
 func (l *LoadBalancer) NewServer(ctx context.Context, req *pb.ServerRequest) (*pb.ServerResponse, error) {
@@ -273,10 +277,13 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 func startHTTP() {
 	//new game creation
 	http.HandleFunc("/lobbies", func(w http.ResponseWriter, r *http.Request) {
+		// enableCors(&w)
 		newConnect(w, r)
 	})
 	// trying to join the game and play
 	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
+
+		// enableCors(&w)
 		gameHandler(w, r)
 	})
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {

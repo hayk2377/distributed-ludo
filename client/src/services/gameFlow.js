@@ -1,4 +1,21 @@
 import { errorIfUndefinedValues } from '../utils'
+import { LOAD_BALANCER_ADDRESS } from './loadbalancer-address'
+
+export async function createLobby() {
+  const res = await fetch(`${LOAD_BALANCER_ADDRESS}/lobbies`)
+  if (!res.ok) throw new Error('Failed to create lobby' + res.statusText)
+  const { gameCode } = await res.json()
+  return gameCode
+}
+export async function getGameServerAddress(gameCode) {
+  // http://127.0.01:8080/game?gameId=5
+  const res = await fetch(`${LOAD_BALANCER_ADDRESS}/game?gameId=${gameCode}`)
+  if (!res.ok)
+    throw new Error('Failed to get game server address' + res.statusText)
+  const { Message } = await res.json()
+  const [host, port] = Message.split(':')
+  return { host, port }
+}
 
 export default class GameFlowService {
   constructor({
@@ -77,7 +94,10 @@ export default class GameFlowService {
       socket.onclose = () => {
         console.log('Could not connect, check your network connection')
         //If on close with out onmessage, then its a network error
-        reject({ message: 'Could not connect, check your network connection', isNetwork: true })
+        reject({
+          message: 'Could not connect, check your network connection',
+          isNetwork: true,
+        })
       }
       socket.onopen = () => {
         console.log('Connected to ws, waiting for error or ok')
@@ -188,15 +208,15 @@ export default class GameFlowService {
     if (socket) socket.close()
   }
 
-  endService = ()=>{
+  endService = () => {
     //update listeners to dummies
     this.updateListeners({
-      onConnect:()=>{},
-      onDisconnect:()=>{},
-      onFatalError:()=>{},
-      onNonFatalError:()=>{},
-      onGameStateUpdate:()=>{},
-      onLobbyPlayersUpdate:()=>{},
+      onConnect: () => {},
+      onDisconnect: () => {},
+      onFatalError: () => {},
+      onNonFatalError: () => {},
+      onGameStateUpdate: () => {},
+      onLobbyPlayersUpdate: () => {},
     })
 
     //set listeners to these dummy fns
@@ -239,7 +259,8 @@ export default class GameFlowService {
 
       //Timeout vs connection. who ever runs first wins the promise
       setTimeout(() => {
-        if (isPending) reject(new Error('Reconnect timeout, could not reconnect'))
+        if (isPending)
+          reject(new Error('Reconnect timeout, could not reconnect'))
         isPending = false
       }, seconds * 1000)
     })

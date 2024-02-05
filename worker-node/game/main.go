@@ -1,8 +1,9 @@
-package main
+package game
 
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const PORT = ":5007"
+const PORT = ":5000"
 
 var lobbies []*Lobby
 var games []*Game
@@ -27,13 +28,35 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func PlayerFromJWT(jwt string) (*Player, error) {
-	var player Player
-	err := json.Unmarshal([]byte(jwt), &player)
+
+	// Call localhost:5000/user and extract player
+	var player *Player
+	req, err := http.NewRequest("GET", "http://localhost:5000/user", nil)
 	if err != nil {
+		return nil, err
+	}
+
+	// Set the Authorization header
+	req.Header.Add("Authorization", "Bearer "+jwt)
+
+	// Send the request
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(body, &player); err != nil {
 		fmt.Println("Error when unmarshalling jwt", err)
 		return nil, err
 	}
-	return &player, nil
+	return player, nil
 }
 
 func GetLobby(gameCode string, lobbies *[]*Lobby) *Lobby {
@@ -172,7 +195,7 @@ func setupRoutes() {
 	http.HandleFunc("/ws", wsEndpoint)
 }
 
-func main() {
+func StartServing() {
 	fmt.Println("Hello World")
 	setupRoutes()
 	fmt.Println("server running on port ", PORT)
@@ -553,7 +576,6 @@ func Contains(element int, array []int) bool {
 	return false
 }
 
-
 func generateStartToEndPositions() [16][]int {
 	startToEndPositions := [16][]int{}
 
@@ -881,8 +903,6 @@ func (g *Game) RemoveNullPawnPositions() {
 	}
 }
 
-
-
 func (g *Game) SetMovablePawns() {
 	playerNumber := g.Turn
 	g.MovablePawns = []int{}
@@ -900,7 +920,6 @@ func (g *Game) HandleMovePawn(pawnNumber int) error {
 
 	//Reset animation paths
 	g.PawnAnimationPaths = [16][]int{}
-
 
 	position := g.PawnPositions[pawnNumber]
 	playerNumber := GetPlayerNumber(pawnNumber)
