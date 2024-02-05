@@ -67,6 +67,7 @@ export default function GameFlow() {
       } else if (inGame) {
         toast.error('Disconnected from game, Trying to reconnect')
         await gameFlowService.retryRejoiningGame({ gameCode, seconds: 5 })
+        for (let i = 0; i < )
       }
     } catch (err) {
       toast.error(err.message)

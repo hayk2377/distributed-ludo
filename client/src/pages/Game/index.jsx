@@ -5,8 +5,9 @@ import Dice from './Dice'
 import PlayerName from './PlayerName'
 import Tile, { getTileProperties } from './Tile'
 import { toast } from 'react-toastify'
-import { animate } from 'framer-motion'
 import Pawn from './Pawn'
+import { AiOutlineLoading3Quarters } from 'react-icons/ai'
+import { motion } from 'framer-motion'
 
 export default function Game({
   gameState,
@@ -62,6 +63,7 @@ export default function Game({
     dice,
     hasDiced,
     movablePawns,
+    recovering,
     winner,
     onlineStatuses,
     pawnAnimationPaths,
@@ -254,6 +256,17 @@ export default function Game({
   return (
     <div className=' container flex flex-col items-center justify-center gap-6 min-h-screen'>
       <p>Code {gameCode}</p>
+      {recovering && (
+        <p className='flex items-center gap-3'>
+          <motion.span
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+          >
+            <AiOutlineLoading3Quarters />
+          </motion.span>
+          Trying to recover game after server crash, please be patient!
+        </p>
+      )}
       <div className='flex justify-between w-[410px] md:w-[710px]'>
         {playerNamesComponents[0]}
         {playerNamesComponents[1]}

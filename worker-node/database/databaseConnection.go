@@ -57,6 +57,9 @@ func GetGameState(gameCode string) (string, error) {
 	err := gameStateCollection.FindOne(ctx, bson.M{"gameCode": gameCode}).Decode(&gameState)
 	defer cancel()
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", fmt.Errorf("no game state found for game code: %v", gameCode)
+		}
 		fmt.Println("error getting state", err)
 		return "", err
 	}

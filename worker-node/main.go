@@ -48,6 +48,8 @@ func main() {
 			Status: ip,
 		}
 		fmt.Println("calling the 'HeartBeat' rpc. this is to update the server health")
+		//ADD go routine
+		//Notify
 		heartBeatRes, err := client.HeartBeat(context.Background(), heartBeatReq)
 		if err != nil {
 			fmt.Println("Error calling HeartBeat:", err)

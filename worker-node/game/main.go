@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hayk2377/distributed-ludo/worker-node/database"
 )
 
 var PORT = GetPort()
@@ -31,7 +32,7 @@ func GetPort() string {
 
 	// Now you can use the port variable in your code
 	fmt.Println("Port:", port)
-	return ":"+port
+	return ":" + port
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
@@ -152,13 +153,34 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	//Handle game rejoin (not join, that happens when lobby upgrades to game)
 	if intent == "game" {
-		game := GetGame(code, &games)
-		if game == nil {
-			errorPayloadStr, _ = NewErrorEventPayload("Game not found", true).ToJSON()
-		} else if !game.CanRejoin(code, player) {
-			errorPayloadStr, _ = NewErrorEventPayload("Player can not rejoin game "+player.Name+game.GameCode, true).ToJSON()
-		} else if err := game.Rejoin(player); err != nil {
-			errorPayloadStr, _ = NewErrorEventPayload(err.Error(), true).ToJSON()
+		gameFromList := GetGame(code, &games)
+		gameStateFromDB, err := database.GetGameState(code)
+
+		clientDisconnected := gameFromList != nil
+		serverDisconnected := gameFromList == nil && err == nil
+
+		if clientDisconnected {
+
+			game := GetGame(code, &games)
+			if game == nil {
+				errorPayloadStr, _ = NewErrorEventPayload("Game not found", true).ToJSON()
+			} else if !game.CanRejoin(code, player) {
+				errorPayloadStr, _ = NewErrorEventPayload("Player can not rejoin game "+player.Name+game.GameCode, true).ToJSON()
+			} else if err := game.Rejoin(player); err != nil {
+				errorPayloadStr, _ = NewErrorEventPayload(err.Error(), true).ToJSON()
+			}
+
+		}else if serverDisconnected{
+			game, err := RecoverGame(gameStateFromDB)
+			if err != nil {
+				errorPayloadStr, _ = NewErrorEventPayload(err.Error(), true).ToJSON()
+			} else if err := game.Rejoin(player); err != nil {
+				errorPayloadStr, _ = NewErrorEventPayload(err.Error(), true).ToJSON()
+			}else{
+				fmt.Println("recovered and added game", code, "to games list")
+				games = append(games, game)
+			}
+		
 		}
 	}
 
@@ -716,6 +738,30 @@ func ErrorIfInvalidMove(pawnNumber int, position int, dice int) error {
 
 // </engine path>
 
+func RecoverGame(gameState string) (*Game, error) {
+
+	game := &Game{}
+	game.Recovering = true
+	json.Unmarshal([]byte(gameState), game)
+
+	fmt.Println("Recovered game", game.GameCode, gameState)
+
+	//After 10 seconds, start game
+	time.AfterFunc(10*time.Second, func() {
+		if game == nil {
+			return
+		}
+		game.Recovering = false
+		game.ReAddListeners()
+		game.RemoveNullPawnPositions()
+		game.UpdateState()
+		fmt.Println("Recovered game", game.GameCode, "is now live to play")
+	})
+
+	return game, nil
+
+}
+
 func NewGame(gameCode string, players []*Player) (*Game, error) {
 	newPlayers := [4]*Player{}
 	onlineStatuses := [4]bool{}
@@ -730,18 +776,18 @@ func NewGame(gameCode string, players []*Player) (*Game, error) {
 	dice := 5
 	hasDiced := false
 	movablePawns := []int{}
+	recovering := false
 
 	winner := -1
 	pawnAnimationPaths := [16][]int{}
 	offlineTimeout := 10
 	playerRemoveTimers := [4]*time.Timer{nil, nil, nil, nil}
 
-	game := &Game{gameCode, newPlayers, pawnPositions, turn, dice, hasDiced, movablePawns, winner, onlineStatuses, pawnAnimationPaths, offlineTimeout, playerRemoveTimers}
+	game := &Game{gameCode, newPlayers, pawnPositions, turn, dice, hasDiced, movablePawns, recovering, winner, onlineStatuses, pawnAnimationPaths, offlineTimeout, playerRemoveTimers}
 	game.ReAddListeners()
 	game.RemoveNullPawnPositions()
 	game.UpdateState()
 	return game, nil
-
 }
 
 type Game struct {
@@ -753,6 +799,8 @@ type Game struct {
 	Dice          int        `json:"dice"`         //Value of dice (can be before or after rolling dice)
 	HasDiced      bool       `json:"hasDiced"`     //Either ready to dice or ready to move pawn
 	MovablePawns  []int      `json:"movablePawns"` //To help frontend know which pawns can be chosen
+
+	Recovering bool `json:"recovering"` //To wait for players to join
 
 	Winner             int            `json:"winner"`
 	OnlineStatuses     [4]bool        `json:"onlineStatuses"`     //To help frontend show online status
@@ -1054,7 +1102,10 @@ func (g *Game) Rejoin(player *Player) error {
 			str, _ := (&EventPayload{"ok", ""}).ToJSON()
 			player.SendMessage(str)
 
-			g.ReAddListeners()
+			//Dont listen if game is not yet ready to play
+			if !g.Recovering {
+				g.ReAddListeners()
+			}
 			return nil
 		}
 	}
@@ -1093,6 +1144,12 @@ func (g *Game) UpdateState() error {
 	if err != nil {
 		fmt.Println("Error when marshalling game state", err)
 		return err
+	}
+
+	//Save to mongodb
+	fmt.Println("upserting database for game ", g.GameCode)
+	if err := database.UpsertGameState(g.GameCode, string(gameState)); err != nil {
+		fmt.Println("couldnt upsert database for game code", g.GameCode, err)
 	}
 
 	//make game state event and toString it
