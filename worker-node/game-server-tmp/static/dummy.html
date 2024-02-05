@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h1>Server</h1>
+    <p id="status">--</p>
+    <div id="messages"></div>
+    <form id="lobby">
+      <input type="text" name="name" value="Abebe" />
+      <input type="text" name="id" value="1" />
+      <input type="text" name="gameCode" value="1234" />
+      <input type="text" name="intent" value="lobby" />
+      <button>Send</button>
+    </form>
+
+    <button id="new-lobby">New Lobby</button>
+    <button id="start-game">Start Game</button>
+    <button id="disconnect">Disconnect</button>
+    <button id="pawn">Choose Pawn</button>
+    <button id="dice">Choose Dice</button>
+
+    <script>
+      let socket
+      const PORT = 5007
+
+      document
+        .querySelector('#new-lobby')
+        .addEventListener('click', async (e) => {
+          const data = await fetch(`http://localhost:${PORT}/lobbies`)
+          const { gameCode: c } = await data.json()
+          console.log('gameCode is ', c)
+          document.querySelector('input[name="gameCode"]').value = c
+        })
+
+      document
+        .querySelector('#start-game')
+        .addEventListener('click', async (e) => {
+          socket.send(
+            JSON.stringify({
+              event: 'startGame',
+              content: '',
+            })
+          )
+        })
+
+      document.querySelector('#disconnect').addEventListener('click', (e) => {
+        socket.close()
+      })
+
+      document.querySelector('#pawn').addEventListener('click', (e) => {
+        socket.send(
+          JSON.stringify({
+            event: 'pawn',
+            content: JSON.stringify({ pawnNumber: 50 }),
+          })
+        )
+      })
+
+      document.querySelector('#dice').addEventListener('click', (e) => {
+        socket.send(JSON.stringify({ event: 'dice', content: '' }))
+      })
+
+      document.querySelector('#lobby').addEventListener('submit', (e) => {
+        e.preventDefault()
+        const name = document.querySelector('input[name="name"]').value
+        const id = document.querySelector('input[name="id"]').value
+        const gameCode = document.querySelector('input[name="gameCode"]').value
+        const intent = document.querySelector('input[name="intent"]').value
+        connect({ name, id, gameCode, intent })
+      })
+
+      function connect({ id, name, gameCode, intent }) {
+        const url = `ws://localhost:5007/ws?jwt=${JSON.stringify({
+          id,
+          name,
+        })}&gameCode=${gameCode}&intent=${intent}`
+        console.log(url)
+        socket = new WebSocket(url)
+
+        socket.onopen = (e) => {
+          console.log('connected')
+        }
+
+        socket.onmessage = (e) => {
+          console.log(e.data)
+        }
+
+        socket.onclose = (e) => {
+          console.log('closed')
+        }
+
+        socket.onerror = (e) => {
+          console.log('error', e)
+        }
+      }
+
+      // const sayHi3 = () => {
+      //   const sayHi=() => {
+      //     console.log('hi')
+      //     sayHi2()
+      //   }
+
+      //   sayHi()
+      //   const sayHi2=() => {
+      //     sayHi()
+      //     console.log('hi2')
+      //   }
+
+      // }
+
+      // sayHi3()
+    </script>
+  </body>
+</html>
