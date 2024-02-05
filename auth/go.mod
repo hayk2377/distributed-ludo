@@ -1,4 +1,4 @@
-module github.com/hayk2377/distributed/auth
+module github.com/hayk2377/distributed-ludo/auth
 
 go 1.16
 
