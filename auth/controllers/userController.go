@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -58,11 +59,14 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
+
+		fmt.Println("signup called", *user.Email)
 		count, err := userCollection.CountDocuments(ctx, bson.M{"email": user.Email})
 		defer cancel()
 		if err != nil {
 			log.Panic(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while checking for the email"})
+			return
 		}
 
 		password := HashPassword(*user.Password)
@@ -70,6 +74,7 @@ func Signup() gin.HandlerFunc {
 
 		if count > 0 {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "this email or phone number already exists"})
+			return
 		}
 
 		user.BsonID = primitive.NewObjectID()
@@ -118,6 +123,7 @@ func Login() gin.HandlerFunc {
 
 		if foundUser.Email == nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+			return
 		}
 
 		token, err := helper.GenerateAllTokens(*foundUser.ID, *foundUser.Email, *foundUser.Name)

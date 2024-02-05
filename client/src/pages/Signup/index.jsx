@@ -4,19 +4,27 @@ import { COLORS } from '../../utils'
 import { Link, useNavigate } from 'react-router-dom'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { signup, test } from '../../services/user'
 
 export default function Signup() {
   const navigate = useNavigate()
-
 
   const onSignup = async (e) => {
     e.preventDefault()
     const email = e.target.email.value
     const name = e.target.name.value
     const password = e.target.password.value
-    toast.success('Saved' + JSON.stringify({name, password, email}))
-    // await new Promise((resolve) => setTimeout(resolve, 1000))
-    navigate('/login')
+    try {
+      console.log('signingup')
+      await signup({ email, name, password })
+      // await test()
+      console.log('here')
+      toast.success('Saved' + JSON.stringify({ name, password, email }))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      navigate('/login')
+    } catch (e) {
+      return toast.error(e.message)
+    }
   }
   return (
     <>

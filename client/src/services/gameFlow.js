@@ -1,38 +1,4 @@
-function errorIfUndefinedValues(object) {
-  for (const key in object) {
-    if (object[key] === undefined) {
-      throw new Error(`Missing required parameter ${key}`)
-    }
-  }
-}
-
-// export async function createLobby({ gameHost, gamePort, jwt }) {
-//   errorIfUndefinedValues({ gameHost, gamePort, jwt })
-
-//   const res = await fetch(`http://localhost:${this.gamePort}/lobbies`)
-//   if (!res.ok) throw new Error('Failed to create lobby' + res.statusText)
-//   const { gameCode } = await res.json()
-//   return gameCode
-// }
-
-// export async function joinLobby({ gameCode, gamePort, gameHost, jwt }) {
-//   errorIfUndefinedValues({ gameCode, jwt })
-//   return new Promise((resolve, reject) => {
-//     const url = `ws://${gameHost}:${gamePort}/ws?jwt=${jwt}&gameCode=${gameCode}&intent=${intent}`
-//     const socket = new WebSocket(url)
-//     socket.onopen = () => {
-//       console.log('connected to ws')
-//     }
-
-//     socket.onerror = (e) => {
-//       reject('Could not connect')
-//     }
-
-//     socket.onclose = () => {
-//       console.log('disconnected from ws')
-//     }
-//   })
-// }
+import { errorIfUndefinedValues } from '../utils'
 
 export default class GameFlowService {
   constructor({

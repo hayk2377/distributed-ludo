@@ -77,3 +77,11 @@ export function getTileProperties() {
   tileProperties = rotateBy90(tileProperties)
   return flattenMatrix(tileProperties)
 }
+
+export function errorIfUndefinedValues(object) {
+  for (const key in object) {
+    if (object[key] === undefined) {
+      throw new Error(`Missing required parameter ${key}`)
+    }
+  }
+}

@@ -3,16 +3,19 @@ import { COLORS } from '../../utils'
 import { Link, useNavigate } from 'react-router-dom'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { login } from '../../services/user'
 
 export default function Login() {
   const navigate = useNavigate()
 
   const onLogin = async (e) => {
+    e.preventDefault()
     const email = e.target.email.value
     const password = e.target.password.value
+    await login({ email, password })
     toast.success('Login successful'+JSON.stringify({email, password}))
     e.preventDefault()
-    // await new Promise((resolve) => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     navigate('/app')
   }
   return (

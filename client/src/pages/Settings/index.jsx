@@ -4,6 +4,7 @@ import { COLORS } from '../../utils'
 import { Link, useNavigate } from 'react-router-dom'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { getJWT, getUser, hasJWT } from '../../services/user'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -14,10 +15,16 @@ export default function Settings() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const user = {email:'abebe@gmail.com', name:'Abebe Kebede', password:'abebe'}
-      setEmail(user.email)
-      setName(user.name)
-      setPassword(user.password)
+      try {
+        console.log(getJWT())
+        const user = await getUser()
+        setEmail(user.email)
+        setName(user.name)
+        setPassword(user.password)
+      } catch (e) {
+        console.log(e)
+        toast.error(e.message)
+      }
     }
     fetchUser()
   }, [])
@@ -26,7 +33,7 @@ export default function Settings() {
     e.preventDefault()
     const name = e.target.name.value
     const password = e.target.password.value
-    toast.success('Saved' + JSON.stringify({name, password}))
+    toast.success('Saved' + JSON.stringify({ name, password }))
     // await new Promise((resolve) => setTimeout(resolve, 1000))
   }
   return (
@@ -89,4 +96,3 @@ export default function Settings() {
     </>
   )
 }
-

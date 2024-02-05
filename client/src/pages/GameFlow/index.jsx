@@ -6,14 +6,30 @@ import GameFlowService from '../../services/gameFlow'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import InNavbar from '../../components/InNavbar'
+import { getUser } from '../../services/user'
 
 export default function GameFlow() {
+  const [user, setUser] = useState(null)
   const [page, setPage] = useState(0)
   const [gameCode, setGameCode] = useState(null)
   const [lobbyState, setLobbyState] = useState(null)
   const [hadFatalError, setHadFatalError] = useState(false)
   const [gameState, setGameState] = useState(null)
   const [gameFlowService, setGameFlowService] = useState(null)
+
+  //First of all, say welcom
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await getUser()
+        setUser(user)
+      } catch (e) {
+        toast.error(e.message)
+        toast.error('Please retry')
+      }
+    }
+    fetchUser()
+  }, [])
 
   const getPlayerId = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -175,7 +191,7 @@ export default function GameFlow() {
         <>
           <ToastContainer />
           {page === 0 && (
-            <CreateJoin onCreateLobby={createLobby} onJoinLobby={joinLobby} />
+            <CreateJoin onCreateLobby={createLobby} onJoinLobby={joinLobby} name={user?.name} />
           )}
           {page === 1 && (
             <Lobby
