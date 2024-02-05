@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -133,28 +135,39 @@ func removeGameId(game string){
 }
 func newConnect(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
-
-	if len(queue) == 0 {
+	n:=len(queue)
+	if n == 0 {
 		// No available servers in the queue
 		http.Error(w, "No available servers", http.StatusServiceUnavailable)
 		return
 	}
-
+	i := float64(n) * 0.7
+	rounded := int(math.Floor(i))
 	// Get the server IP from the front of the queue
 	serverIP := queue[0]
-	queue = append(queue[1:], serverIP)
+	front := append(queue[1:rounded], serverIP)//i am assuming there is atleast 70% of the queue healthy in a given time
+	//inspired from paxos precondition.
+	queue =append(front, queue[rounded:]...)
 
 	// Unlock the mutex before setting up the reverse proxy
 	mutex.Unlock()
 
 	// Create a new URL with the server IP
-	serverURL, _ := url.Parse("http://" + serverIP)
+	serverURL, _ := url.Parse("http://" + serverIP+"/creategame")
 
 	// Create a reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(serverURL)
 
 	// Serve the request using the reverse proxy
 	proxy.ServeHTTP(w, r)
+}
+//Action can be from client or worker node 
+//client can login /signup
+//worker node can verify if jwt token is valid
+func Action(w http.ResponseWriter, r *http.Request,Act string,){
+	authServerUrl,_:=url.Parse("http://127.0.0.1:8000/"+Act)//this path will be changed 
+	proxy:=httputil.NewSingleHostReverseProxy(authServerUrl)
+	proxy.ServeHTTP(w,r)
 }
 
 func jsonResponse(w http.ResponseWriter, response Response) {
@@ -172,13 +185,41 @@ func errorResponse(w http.ResponseWriter, status int, Message string) {
 	}
 	json.NewEncoder(w).Encode(response)
 }
+func statusHandler(w http.ResponseWriter, r *http.Request) {
+	for i := 0; i < 10; i++ {
+		mutex.Lock()
+		res := Response{
+			Status:  "ok",
+			Message: strings.Join(queue, "-"),
+		}
+		json.NewEncoder(w).Encode(res)
+		mutex.Unlock()
+
+		// Add a delay or sleep if needed
+		time.Sleep(time.Second)
+	}
+}
 func startHTTP() {
-	http.HandleFunc("/new", func(w http.ResponseWriter, r *http.Request) {
+	//new game creation
+	http.HandleFunc("/newgame", func(w http.ResponseWriter, r *http.Request) {
 		go newConnect(w, r)
 	})
-
+	// trying to join the game and play
 	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
 		go gameHandler(w, r)
+	})
+	http.HandleFunc("/login",func(w http.ResponseWriter, r *http.Request) {
+		go Action(w, r,"login")
+	})
+	http.HandleFunc("/signup",func(w http.ResponseWriter, r *http.Request) {
+		go Action(w, r,"signup")
+	})
+	//trying to verify the token
+	http.HandleFunc("/verify",func(w http.ResponseWriter, r *http.Request) {
+		go Action(w, r,"user")
+	})
+	http.HandleFunc("/status",func(w http.ResponseWriter, r *http.Request){
+		go statusHandler(w,r)
 	})
 
 	// Start the load balancer server in a goroutine
