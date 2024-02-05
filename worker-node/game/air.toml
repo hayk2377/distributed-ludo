@@ -1,4 +1,0 @@
-root = "."
-tmp_dir = "tmp"
-build_cmd = "go build -o ./tmp/main ."
-run_cmd = "./tmp/main

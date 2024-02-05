@@ -66,8 +66,20 @@ export default function GameFlow() {
         await gameFlowService.retryJoiningLobby({ gameCode, seconds: 5 })
       } else if (inGame) {
         toast.error('Disconnected from game, Trying to reconnect')
-        await gameFlowService.retryRejoiningGame({ gameCode, seconds: 5 })
-        for (let i = 0; i < )
+        // await gameFlowService.retryRejoiningGame({ gameCode, seconds: 5 })
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          console.log('trying to reconnect via load balancer')
+          try {
+            const gameFlowService = await createGameFlowService(gameCode)
+            await gameFlowService.rejoinGame({ gameCode })
+            setGameFlowService(gameFlowService)
+            console.log('reconnection worked!')
+            break
+          } catch (e) {
+            console.log('reconnection error: ', e)
+          }
+        }
       }
     } catch (err) {
       toast.error(err.message)

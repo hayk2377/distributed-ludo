@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"sync"
 	"time"
-	"math/rand"
+
 	pb "github.com/hayk2377/distributed-ludo/rpc/LoadBalancer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -39,7 +39,7 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 func (l *LoadBalancer) NewServer(ctx context.Context, req *pb.ServerRequest) (*pb.ServerResponse, error) {
-	value:=req.Ip
+	value := req.Ip
 	fmt.Println("Received newServer request from IP:", value)
 	if req.Password != "whatever" {
 		return nil, status.Error(codes.InvalidArgument, "you are blacklisted!")
@@ -59,7 +59,7 @@ func (l *LoadBalancer) NewServer(ctx context.Context, req *pb.ServerRequest) (*p
 	// if !exists {
 	// 	queue = append(queue, req.Ip)
 	// }
-	queue=append(queue,value)
+	queue = append(queue, value)
 	fmt.Println("Queue:", queue)
 	mutex.Unlock()
 	go removeIP(value)
@@ -82,27 +82,27 @@ func (l *LoadBalancer) HeartBeat(ctx context.Context, req *pb.Heartreq) (*pb.Ser
 	// 		queue = append([]string{value}, queue...)
 	// 	}
 	// }
-	queue=append(queue,value)
+	queue = append(queue, value)
 	mutex.Unlock()
 	go removeIP(value)
 	return &pb.ServerResponse{ServerId: "ok"}, nil
 }
-func removeIP{
+func removeIP(value string) {
 	time.Sleep(time.Second)
-	mutex.lock()
-	defer mutex.unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	if len(queue) == 1 {
-		mutex.Unlock()
+		// mutex.Unlock()
 		return
 	}
 	for i := range queue {
 		if queue[i] == value {
-			if len(queue)==i+1{
-				queue=queue[:i]
+			if len(queue) == i+1 {
+				queue = queue[:i]
 				return
 			}
-			queue=append(queue[:i],queue[i+1:])
-			mutex.unlock()
+			queue = append(queue[:i], queue[i+1:]...)
+			// mutex.Unlock()
 			return
 		}
 	}
@@ -112,12 +112,12 @@ func (l *LoadBalancer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.S
 	serverip := req.ServerIp
 	fmt.Printf("Received notify request for GameID: %s, ServerIP: %s\n", gameid, serverip)
 	gamesMutex.Lock()
-	defer gamesMutex.unlock()
+	defer gamesMutex.Unlock()
 	ip, thereIs := games[gameid]
 	if thereIs && ip != serverip {
 		return nil, status.Error(codes.Unauthenticated, "loadbalancer didnt assign that")
 	}
-	games[gameid]=serverip
+	games[gameid] = serverip
 	return &pb.ServerResponse{ServerId: "ok"}, nil
 }
 
@@ -155,9 +155,9 @@ func gameHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No available servers", http.StatusServiceUnavailable)
 		return
 	}
-	rand.Seed(time.Now().UnixNano())//seed the rand number generator
-	randomNumber := rand.Intn(n) //get a random index
-	IP:=queue[randomNumber]
+	rand.Seed(time.Now().UnixNano()) //seed the rand number generator
+	randomNumber := rand.Intn(n)     //get a random index
+	IP := queue[randomNumber]
 	//IP := queue[0]
 	// if n != 1 {
 	// 	queue = append(queue[1:], IP)
@@ -169,15 +169,15 @@ func gameHandler(w http.ResponseWriter, r *http.Request) {
 	serverIP, exists := games[gameID]
 
 	if exists {
-		url := "https://"+serverIP+"/"
-		response, err := http.Get(url)
+		url := "https://" + serverIP + "/"
+		_, err := http.Get(url)
 		if err == nil {
 			IP = serverIP
 		}
-		
-	} 
+
+	}
 	games[gameID] = IP
-	
+	fmt.Println("Game ID:", gameID, "Server IP:", IP)
 	gamesMutex.Unlock()
 
 	response := Response{
@@ -195,9 +195,9 @@ func newConnect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No available servers", http.StatusServiceUnavailable)
 		return
 	}
-	rand.Seed(time.Now().UnixNano())//seed the rand number generator
-	randomNumber := rand.Intn(n) //get a random index
-	IP:=queue[randomNumber]
+	rand.Seed(time.Now().UnixNano()) //seed the rand number generator
+	randomNumber := rand.Intn(n)     //get a random index
+	IP := queue[randomNumber]
 	// if n == 1 {
 	// 	serverIP := queue[0]
 	// 	mutex.Unlock()
