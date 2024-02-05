@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,7 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const PORT = ":5000"
+var PORT = GetPort()
 
 var lobbies []*Lobby
 var games []*Game
@@ -21,6 +22,16 @@ var games []*Game
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+func GetPort() string {
+	var port string
+	flag.StringVar(&port, "port", "5000", "port to connect to")
+	flag.Parse()
+
+	// Now you can use the port variable in your code
+	fmt.Println("Port:", port)
+	return ":"+port
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {

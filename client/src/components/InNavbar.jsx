@@ -16,7 +16,16 @@ export default function InNavbar() {
           <span style={{ color: COLORS.yellow }}>G</span>S
         </Link>
         <div className='flex gap-3 items-center'>
-          <Link to='/app/'>Game</Link>
+          <button
+            onClick={async () => {
+              navigate('/')
+              console.log('going to game')
+              await new Promise((resolve) => setTimeout(resolve, 10))
+              navigate('/app')
+            }}
+          >
+            Game
+          </button>
           <button
             onClick={() => {
               try {
