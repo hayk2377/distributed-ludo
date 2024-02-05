@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"sync"
 	"time"
-
+	"math/rand"
 	pb "github.com/hayk2377/distributed-ludo/rpc/LoadBalancer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -39,27 +39,30 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 func (l *LoadBalancer) NewServer(ctx context.Context, req *pb.ServerRequest) (*pb.ServerResponse, error) {
-	fmt.Println("Received newServer request from IP:", req.Ip)
+	value:=req.Ip
+	fmt.Println("Received newServer request from IP:", value)
 	if req.Password != "whatever" {
 		return nil, status.Error(codes.InvalidArgument, "you are blacklisted!")
 	}
 	mutex.Lock()
-	exists := false
-	fmt.Println("Servers:", queue)
-	//Dont modify a server that is already in the queue
-	for _, ip := range queue {
-		fmt.Println("comparing", ip, req.Ip)
-		if ip == req.Ip {
-			exists = true
-			break
-		}
-	}
+	// exists := false
+	// fmt.Println("Servers:", queue)
+	// //Dont modify a server that is already in the queue
+	// for _, ip := range queue {
+	// 	fmt.Println("comparing", ip, req.Ip)
+	// 	if ip == req.Ip {
+	// 		exists = true
+	// 		break
+	// 	}
+	// }
 
-	if !exists {
-		queue = append(queue, req.Ip)
-	}
+	// if !exists {
+	// 	queue = append(queue, req.Ip)
+	// }
+	queue=append(queue,value)
 	fmt.Println("Queue:", queue)
 	mutex.Unlock()
+	go removeIP(value)
 	return &pb.ServerResponse{ServerId: "1234"}, nil
 }
 
@@ -67,31 +70,54 @@ func (l *LoadBalancer) HeartBeat(ctx context.Context, req *pb.Heartreq) (*pb.Ser
 	value := req.Status
 	fmt.Println("Received heartBeat request from IP:", value)
 	mutex.Lock()
+	// if len(queue) == 1 {
+	// 	mutex.Unlock()
+	// 	return &pb.ServerResponse{ServerId: "ok"}, nil
+	// }
+	// for i := range queue {
+	// 	if queue[i] == value {
+	// 		// If the value is found, remove it from the current position
+	// 		queue = append(queue[:i], queue[i+1:]...)
+	// 		// Insert the value at the 0 index
+	// 		queue = append([]string{value}, queue...)
+	// 	}
+	// }
+	queue=append(queue,value)
+	mutex.Unlock()
+	go removeIP(value)
+	return &pb.ServerResponse{ServerId: "ok"}, nil
+}
+func removeIP{
+	time.Sleep(time.Second)
+	mutex.lock()
+	defer mutex.unlock()
 	if len(queue) == 1 {
 		mutex.Unlock()
-		return &pb.ServerResponse{ServerId: "ok"}, nil
+		return
 	}
 	for i := range queue {
 		if queue[i] == value {
-			// If the value is found, remove it from the current position
-			queue = append(queue[:i], queue[i+1:]...)
-			// Insert the value at the 0 index
-			queue = append([]string{value}, queue...)
+			if len(queue)==i+1{
+				queue=queue[:i]
+				return
+			}
+			queue=append(queue[:i],queue[i+1:])
+			mutex.unlock()
+			return
 		}
 	}
-	mutex.Unlock()
-	return &pb.ServerResponse{ServerId: "ok"}, nil
 }
-
 func (l *LoadBalancer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.ServerResponse, error) {
 	gameid := req.GameId
 	serverip := req.ServerIp
 	fmt.Printf("Received notify request for GameID: %s, ServerIP: %s\n", gameid, serverip)
 	gamesMutex.Lock()
+	defer gamesMutex.unlock()
 	ip, thereIs := games[gameid]
-	if !thereIs || ip != serverip {
+	if thereIs && ip != serverip {
 		return nil, status.Error(codes.Unauthenticated, "loadbalancer didnt assign that")
 	}
+	games[gameid]=serverip
 	return &pb.ServerResponse{ServerId: "ok"}, nil
 }
 
@@ -129,11 +155,13 @@ func gameHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No available servers", http.StatusServiceUnavailable)
 		return
 	}
-
-	IP := queue[0]
-	if n != 1 {
-		queue = append(queue[1:], IP)
-	}
+	rand.Seed(time.Now().UnixNano())//seed the rand number generator
+	randomNumber := rand.Intn(n) //get a random index
+	IP:=queue[randomNumber]
+	//IP := queue[0]
+	// if n != 1 {
+	// 	queue = append(queue[1:], IP)
+	// }
 	mutex.Unlock()
 
 	// Check if the game ID is in the games map
@@ -141,29 +169,24 @@ func gameHandler(w http.ResponseWriter, r *http.Request) {
 	serverIP, exists := games[gameID]
 
 	if exists {
-		IP = serverIP
-	} else {
-		games[gameID] = IP
-	}
+		url := "https://"+serverIP+"/"
+		response, err := http.Get(url)
+		if err == nil {
+			IP = serverIP
+		}
+		
+	} 
+	games[gameID] = IP
+	
 	gamesMutex.Unlock()
-	go func() {
-		// Wait for thirty seconds
-		time.Sleep(30 * time.Second)
 
-		// remove the record.
-		removeGameId(gameID)
-	}()
 	response := Response{
 		Status:  "success",
 		Message: IP,
 	}
 	jsonResponse(w, response)
 }
-func removeGameId(game string) {
-	gamesMutex.Lock()
-	delete(games, game)
-	gamesMutex.Unlock()
-}
+
 func newConnect(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	n := len(queue)
@@ -172,38 +195,32 @@ func newConnect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No available servers", http.StatusServiceUnavailable)
 		return
 	}
+	rand.Seed(time.Now().UnixNano())//seed the rand number generator
+	randomNumber := rand.Intn(n) //get a random index
+	IP:=queue[randomNumber]
+	// if n == 1 {
+	// 	serverIP := queue[0]
+	// 	mutex.Unlock()
 
-	i := float64(n) * 0.7
+	// 	serverURL, _ := url.Parse("http://" + serverIP + "/lobbies")
+	// 	proxy := httputil.NewSingleHostReverseProxy(serverURL)
 
-	if n == 1 {
-		serverIP := queue[0]
-		mutex.Unlock()
+	// 	proxy.Director = func(req *http.Request) {
+	// 		req.Header = r.Header
+	// 		req.URL.Scheme = serverURL.Scheme
+	// 		req.URL.Host = serverURL.Host
+	// 	}
 
-		serverURL, _ := url.Parse("http://" + serverIP + "/lobbies")
-		proxy := httputil.NewSingleHostReverseProxy(serverURL)
-
-		proxy.Director = func(req *http.Request) {
-			req.Header = r.Header
-			req.URL.Scheme = serverURL.Scheme
-			req.URL.Host = serverURL.Host
-		}
-
-		proxy.ServeHTTP(w, r)
-		return
-	}
-	rounded := int(math.Floor(i))
-	// Get the server IP from the front of the queue
-	serverIP := queue[0]
-	front := append(queue[1:rounded], serverIP) //i am assuming there is atleast 70% of the queue healthy in a given time
-	//inspired from paxos precondition.
-	queue = append(front, queue[rounded:]...)
+	// 	proxy.ServeHTTP(w, r)
+	// 	return
+	// }
 
 	// Unlock the mutex before setting up the reverse proxy
 	mutex.Unlock()
 
 	// Create a new URL with the server IP
 	fmt.Println("using server to server IP")
-	serverURL, _ := url.Parse("http://" + serverIP + "/lobbies")
+	serverURL, _ := url.Parse("http://" + IP + "/lobbies")
 
 	// Create a reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(serverURL)
@@ -262,20 +279,6 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 		Message: responseString,
 	}
 	jsonResponse(w, res)
-
-	// for i := 0; i < 10; i++ {
-	// 	mutex.Lock()
-	// 	res := Response{
-	// 		Status:  "ok",
-	// 		Message: strings.Join(queue, "-"),
-	// 	}
-	// 	json.NewEncoder(w).Encode(res)
-	// 	mutex.Unlock()
-	// 	fmt.Println("here")
-
-	// 	// Add a delay or sleep if needed
-	// 	time.Sleep(time.Second)
-	// }
 }
 func startHTTP() {
 	//new game creation
