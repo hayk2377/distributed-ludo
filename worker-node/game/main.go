@@ -24,6 +24,8 @@ var upgrader = websocket.Upgrader{
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
+
+	enableCors(&w)
 	fmt.Fprint(w, "Homepage Endpoint Hit")
 }
 
@@ -31,7 +33,7 @@ func PlayerFromJWT(jwt string) (*Player, error) {
 
 	// Call localhost:5000/user and extract player
 	var player *Player
-	req, err := http.NewRequest("GET", "http://localhost:5000/user", nil)
+	req, err := http.NewRequest("GET", "http://localhost:8080/user", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +53,7 @@ func PlayerFromJWT(jwt string) (*Player, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("body of user from jwt is", string(body))
 
 	if err := json.Unmarshal(body, &player); err != nil {
 		fmt.Println("Error when unmarshalling jwt", err)
@@ -77,6 +80,8 @@ func GetGame(gameCode string, games *[]*Game) *Game {
 }
 
 func wsEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	enableCors(&w)
 	//gameCode=12345&intent=lobby&jwt="{\"id\":\"123\",\"name\":\"test\"}"
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
@@ -835,9 +840,7 @@ func (g *Game) ListenToDice() {
 			//set dice and the fact that the player diced
 			g.HasDiced = true
 
-			// g.Dice = rand.Intn(6) + 1 // (0 to 5 ) + 1
-			//TODO
-			g.Dice = 6
+			g.Dice = rand.Intn(6) + 1 // (0 to 5 ) + 1
 
 			//Let the player know the pawns that can be moved
 			g.SetMovablePawns()

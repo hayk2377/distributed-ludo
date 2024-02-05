@@ -35,12 +35,11 @@ export default function GameFlow() {
   }, [])
 
   const getPlayerId = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return urlParams.get('id') || '1'
+    return user.id
   }
 
   const getPlayerName = (id) => {
-    return { 1: 'Abebe Kebede', 2: 'Kebede Abebe', 3: 'Maritue Mamo' }[id]
+    return user.name
   }
 
   const onConnect = () => console.log('Connected')
@@ -99,6 +98,7 @@ export default function GameFlow() {
   }
 
   const createGameFlowService = async (gameCode) => {
+    if (!gameCode) throw new Error('Game code is required')
     const { host: gameHost, port: gamePort } = await getGameServerAddress(
       gameCode
     )
@@ -120,18 +120,18 @@ export default function GameFlow() {
     return newGameFlowService
   }
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const gameFlowService = await createGameFlowService()
-        setGameFlowService(gameFlowService)
-      } catch (e) {
-        toast.error(e.message)
-        toast.error('Please retry')
-      }
-    }
-    fetch()
-  }, [])
+  // useEffect(() => {
+  //   const fetch = async () => {
+  //     try {
+  //       const gameFlowService = await createGameFlowService()
+  //       setGameFlowService(gameFlowService)
+  //     } catch (e) {
+  //       toast.error(e.message)
+  //       toast.error('Please retry')
+  //     }
+  //   }
+  //   fetch()
+  // }, [])
 
   useEffect(() => {
     //Some listeners depend on page
@@ -150,11 +150,12 @@ export default function GameFlow() {
     let gameCode
     try {
       gameCode = await cLobby()
-      console.log("game code is",gameCode)
+      console.log('game code is', gameCode)
       const gameFlowService = await createGameFlowService(gameCode)
       await gameFlowService.joinLobby({ gameCode })
 
       setGameCode(gameCode)
+      setGameFlowService(gameFlowService)
     } catch (err) {
       toast.error(`Couldn't connect. Check your connection!`)
       console.error(err)
@@ -163,8 +164,12 @@ export default function GameFlow() {
 
   const joinLobby = async (gameCode) => {
     try {
+      const gameFlowService = await createGameFlowService(gameCode)
       await gameFlowService.joinLobby({ gameCode })
       //onLobbyPlayersUpdate will handle the page transition
+
+      setGameCode(gameCode)
+      setGameFlowService(gameFlowService)
     } catch (err) {
       toast.error(err.message)
       console.error(err)

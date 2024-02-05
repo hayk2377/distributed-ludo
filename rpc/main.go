@@ -111,6 +111,9 @@ func startrpc() {
 
 }
 func gameHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+
+	fmt.Println("in game handler")
 
 	// Check if the request has a game ID
 	gameID := r.URL.Query().Get("gameId")

@@ -83,7 +83,6 @@ export async function getUser(authAddress = AUTH_ADDRESS ) {
     },
   })
 
-  console.log('sadf')
   if (!res.ok)
     throw new Error('Failed to get user' + (await extractErrorMessage(res)))
 
