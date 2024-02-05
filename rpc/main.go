@@ -68,7 +68,7 @@ func (l *LoadBalancer) NewServer(ctx context.Context, req *pb.ServerRequest) (*p
 
 func (l *LoadBalancer) HeartBeat(ctx context.Context, req *pb.Heartreq) (*pb.ServerResponse, error) {
 	value := req.Status
-	fmt.Println("Received heartBeat request from IP:", value)
+	// fmt.Println("Received heartBeat request from IP:", value)
 	mutex.Lock()
 	// if len(queue) == 1 {
 	// 	mutex.Unlock()
